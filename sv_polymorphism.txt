@@ -1,0 +1,431 @@
+// ============================================================================
+// POLYMORPHISM IN SYSTEMVERILOG - COMPLETE GUIDE
+// ============================================================================
+
+// ============================================================================
+// PART 1: UNDERSTANDING VIRTUAL METHODS (Runtime Polymorphism)
+// ============================================================================
+
+// Base class (Parent)
+class Animal;
+  string name;
+  
+  function new(string n);
+    name = n;
+  endfunction
+  
+  // Virtual function - can be overridden by child classes
+  virtual function void makeSound();
+    $display("Animal %s makes a generic sound", name);
+  endfunction
+  
+  virtual function void eat();
+    $display("%s is eating", name);
+  endfunction
+endclass
+
+// Derived class 1 (Child)
+class Dog extends Animal;
+  function new(string n);
+    super.new(n);
+  endfunction
+  
+  // Override the makeSound method
+  function void makeSound();
+    $display("Dog %s says: Woof! Woof!", name);
+  endfunction
+  
+  function void eat();
+    $display("%s is eating dog food", name);
+  endfunction
+endclass
+
+// Derived class 2 (Child)
+class Cat extends Animal;
+  function new(string n);
+    super.new(n);
+  endfunction
+  
+  // Override the makeSound method
+  function void makeSound();
+    $display("Cat %s says: Meow! Meow!", name);
+  endfunction
+  
+  function void eat();
+    $display("%s is drinking milk", name);
+  endfunction
+endclass
+
+// Derived class 3 (Child)
+class Cow extends Animal;
+  function new(string n);
+    super.new(n);
+  endfunction
+  
+  function void makeSound();
+    $display("Cow %s says: Moo! Moo!", name);
+  endfunction
+endclass
+
+// ============================================================================
+// PART 2: WHAT HAPPENS WITHOUT VIRTUAL KEYWORD?
+// ============================================================================
+
+class Vehicle;
+  // Non-virtual function
+  function void start();
+    $display("Vehicle starting...");
+  endfunction
+endclass
+
+class Car extends Vehicle;
+  // Override attempt (but won't work polymorphically without virtual)
+  function void start();
+    $display("Car engine starting with key...");
+  endfunction
+endclass
+
+// ============================================================================
+// PART 3: POLYMORPHISM WITH ABSTRACT CLASSES (Pure Virtual Functions)
+// ============================================================================
+
+// Abstract base class - cannot be instantiated
+virtual class Shape;
+  string color;
+  
+  function new(string c);
+    color = c;
+  endfunction
+  
+  // Pure virtual function - MUST be implemented by derived classes
+  pure virtual function real calculateArea();
+  
+  // Regular virtual function - CAN be overridden
+  virtual function void display();
+    $display("This is a %s shape", color);
+  endfunction
+endclass
+
+class Circle extends Shape;
+  real radius;
+  
+  function new(string c, real r);
+    super.new(c);
+    radius = r;
+  endfunction
+  
+  // Must implement pure virtual function
+  function real calculateArea();
+    return 3.14159 * radius * radius;
+  endfunction
+  
+  function void display();
+    $display("Circle: color=%s, radius=%.2f, area=%.2f", 
+             color, radius, calculateArea());
+  endfunction
+endclass
+
+class Rectangle extends Shape;
+  real length, width;
+  
+  function new(string c, real l, real w);
+    super.new(c);
+    length = l;
+    width = w;
+  endfunction
+  
+  function real calculateArea();
+    return length * width;
+  endfunction
+  
+  function void display();
+    $display("Rectangle: color=%s, length=%.2f, width=%.2f, area=%.2f", 
+             color, length, width, calculateArea());
+  endfunction
+endclass
+
+// ============================================================================
+// PART 4: POLYMORPHISM WITH INTERFACES
+// ============================================================================
+
+// Interface defines a contract
+class Transaction;
+  string trans_type;
+  int data;
+  
+  function new(string t, int d);
+    trans_type = t;
+    data = d;
+  endfunction
+  
+  virtual function void execute();
+    $display("Executing transaction: %s with data: %0d", trans_type, data);
+  endfunction
+endclass
+
+class ReadTransaction extends Transaction;
+  function new(int d);
+    super.new("READ", d);
+  endfunction
+  
+  function void execute();
+    $display("READ operation at address: 0x%0h", data);
+  endfunction
+endclass
+
+class WriteTransaction extends Transaction;
+  function new(int d);
+    super.new("WRITE", d);
+  endfunction
+  
+  function void execute();
+    $display("WRITE operation at address: 0x%0h with data", data);
+  endfunction
+endclass
+
+// ============================================================================
+// PART 5: PRACTICAL VERIFICATION EXAMPLE - PACKET GENERATOR
+// ============================================================================
+
+class BasePacket;
+  rand bit [7:0] src_addr;
+  rand bit [7:0] dest_addr;
+  rand bit [31:0] payload;
+  
+  virtual function void display();
+    $display("Base Packet: src=0x%0h, dest=0x%0h, payload=0x%0h", 
+             src_addr, dest_addr, payload);
+  endfunction
+  
+  virtual function bit [31:0] calculate_checksum();
+    return src_addr ^ dest_addr ^ payload;
+  endfunction
+endclass
+
+class EthernetPacket extends BasePacket;
+  rand bit [47:0] mac_addr;
+  
+  function void display();
+    $display("Ethernet Packet: MAC=0x%0h, src=0x%0h, dest=0x%0h, payload=0x%0h", 
+             mac_addr, src_addr, dest_addr, payload);
+  endfunction
+  
+  function bit [31:0] calculate_checksum();
+    return mac_addr[31:0] ^ src_addr ^ dest_addr ^ payload;
+  endfunction
+endclass
+
+class IPv4Packet extends BasePacket;
+  rand bit [31:0] ip_addr;
+  rand bit [7:0] ttl;
+  
+  function void display();
+    $display("IPv4 Packet: IP=%0d.%0d.%0d.%0d, TTL=%0d, src=0x%0h, dest=0x%0h", 
+             ip_addr[31:24], ip_addr[23:16], ip_addr[15:8], ip_addr[7:0],
+             ttl, src_addr, dest_addr);
+  endfunction
+  
+  function bit [31:0] calculate_checksum();
+    return ip_addr ^ ttl ^ src_addr ^ dest_addr ^ payload;
+  endfunction
+endclass
+
+// ============================================================================
+// MAIN MODULE - DEMONSTRATING ALL CONCEPTS
+// ============================================================================
+
+module polymorphism_demo;
+  
+  initial begin
+    // ========================================================================
+    // DEMO 1: Basic Virtual Function Polymorphism
+    // ========================================================================
+    $display("\n========== DEMO 1: Basic Polymorphism ==========");
+    
+    Animal animal_handle;  // Base class handle
+    Dog myDog;
+    Cat myCat;
+    Cow myCow;
+    
+    // Create objects
+    myDog = new("Buddy");
+    myCat = new("Whiskers");
+    myCow = new("Bessie");
+    
+    // Polymorphism in action!
+    // Same handle (animal_handle), different behaviors
+    
+    animal_handle = myDog;  // Point to Dog object
+    animal_handle.makeSound();  // Calls Dog's makeSound()
+    animal_handle.eat();
+    
+    animal_handle = myCat;  // Point to Cat object
+    animal_handle.makeSound();  // Calls Cat's makeSound()
+    animal_handle.eat();
+    
+    animal_handle = myCow;  // Point to Cow object
+    animal_handle.makeSound();  // Calls Cow's makeSound()
+    
+    // ========================================================================
+    // DEMO 2: Polymorphism with Arrays
+    // ========================================================================
+    $display("\n========== DEMO 2: Polymorphism with Arrays ==========");
+    
+    Animal zoo[3];  // Array of base class handles
+    zoo[0] = new("Lion");
+    zoo[1] = myDog;
+    zoo[2] = myCat;
+    
+    // Loop through and call same method - different behaviors!
+    foreach(zoo[i]) begin
+      $display("Animal %0d:", i);
+      zoo[i].makeSound();
+    end
+    
+    // ========================================================================
+    // DEMO 3: Without Virtual Keyword (Static Binding)
+    // ========================================================================
+    $display("\n========== DEMO 3: Without Virtual Keyword ==========");
+    
+    Vehicle v_handle;
+    Car myCar;
+    
+    myCar = new();
+    v_handle = myCar;  // Base handle points to derived object
+    
+    v_handle.start();  // Calls Vehicle's start(), not Car's!
+    // This is because start() is NOT virtual
+    
+    myCar.start();  // Calls Car's start()
+    
+    // ========================================================================
+    // DEMO 4: Abstract Classes and Pure Virtual Functions
+    // ========================================================================
+    $display("\n========== DEMO 4: Abstract Classes ==========");
+    
+    Shape shape_handle;
+    Circle myCircle;
+    Rectangle myRect;
+    
+    myCircle = new("Red", 5.0);
+    myRect = new("Blue", 4.0, 6.0);
+    
+    // Cannot do: shape_handle = new("Green");  // ERROR! Cannot instantiate abstract class
+    
+    shape_handle = myCircle;
+    shape_handle.display();
+    $display("Area: %.2f", shape_handle.calculateArea());
+    
+    shape_handle = myRect;
+    shape_handle.display();
+    $display("Area: %.2f", shape_handle.calculateArea());
+    
+    // ========================================================================
+    // DEMO 5: Practical Verification Example
+    // ========================================================================
+    $display("\n========== DEMO 5: Packet Generator (Verification Use Case) ==========");
+    
+    BasePacket pkt_queue[$];  // Queue of base packet handles
+    BasePacket pkt;
+    EthernetPacket eth_pkt;
+    IPv4Packet ip_pkt;
+    
+    // Generate different packet types
+    eth_pkt = new();
+    void'(eth_pkt.randomize());
+    pkt_queue.push_back(eth_pkt);
+    
+    ip_pkt = new();
+    void'(ip_pkt.randomize());
+    pkt_queue.push_back(ip_pkt);
+    
+    pkt = new();
+    void'(pkt.randomize());
+    pkt_queue.push_back(pkt);
+    
+    // Process all packets polymorphically
+    $display("\nProcessing packet queue:");
+    foreach(pkt_queue[i]) begin
+      $display("\nPacket %0d:", i);
+      pkt_queue[i].display();
+      $display("Checksum: 0x%0h", pkt_queue[i].calculate_checksum());
+    end
+    
+    // ========================================================================
+    // DEMO 6: Type Checking with $cast
+    // ========================================================================
+    $display("\n========== DEMO 6: Dynamic Type Checking ==========");
+    
+    Animal a;
+    Dog d;
+    Cat c;
+    
+    d = new("Max");
+    a = d;  // Upcast (always safe)
+    
+    // Downcast - need to check if safe
+    if ($cast(d, a)) begin
+      $display("Successfully cast Animal to Dog");
+      d.makeSound();
+    end else begin
+      $display("Cast failed!");
+    end
+    
+    // This will fail
+    if ($cast(c, a)) begin
+      $display("Successfully cast Animal to Cat");
+    end else begin
+      $display("Cast failed! The animal is not a cat.");
+    end
+    
+    $display("\n========== END OF DEMOS ==========\n");
+  end
+  
+endmodule
+
+// ============================================================================
+// KEY CONCEPTS SUMMARY
+// ============================================================================
+
+/*
+1. VIRTUAL KEYWORD:
+   - Makes a function/method polymorphic
+   - Enables runtime binding (dynamic dispatch)
+   - Without it, compile-time binding occurs (static dispatch)
+
+2. PURE VIRTUAL FUNCTION:
+   - Declared as: pure virtual function void myFunc();
+   - Must be implemented by derived classes
+   - Makes the class abstract (cannot be instantiated)
+
+3. ABSTRACT CLASS:
+   - Declared as: virtual class MyClass;
+   - Contains at least one pure virtual function
+   - Cannot create objects directly
+   - Used as a base class template
+
+4. POLYMORPHISM BENEFITS:
+   - Write generic code that works with multiple types
+   - Easier to extend (add new derived classes)
+   - Cleaner, more maintainable verification code
+   - Follows Open/Closed Principle (open for extension, closed for modification)
+
+5. COMMON USE CASES IN VERIFICATION:
+   - Stimulus generation (different transaction types)
+   - Scoreboards (different checkers)
+   - Drivers (different protocols)
+   - Monitors (different interfaces)
+   - Coverage collectors (different metrics)
+
+6. $CAST FUNCTION:
+   - Used for safe downcasting
+   - Returns 1 if cast succeeds, 0 if fails
+   - Syntax: $cast(destination, source)
+   - Always use for derived-to-base conversions
+
+7. IMPORTANT RULES:
+   - Base class handle can point to derived class object (upcasting)
+   - Derived class handle needs $cast to point to base object (downcasting)
+   - Only virtual functions exhibit polymorphic behavior
+   - Constructor cannot be virtual
+*/
